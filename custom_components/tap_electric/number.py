@@ -4,12 +4,6 @@ from .const import DOMAIN
 
 async def async_setup_entry(hass, entry, async_add_entities):
     coordinator = hass.data[DOMAIN][entry.entry_id]
-    # De api zit verstopt in de coordinator
-    api = coordinator.hass.data[DOMAIN][entry.entry_id].update_method.__self__.api 
-    # Makkelijker: we halen de api direct uit de coordinator setup
-    
-    # Omdat we de API ook nodig hebben voor acties, halen we die uit hass.data
-    # Maar voor nu gebruiken we de laders uit de coordinator data
     entities = []
     for charger in coordinator.data.get("chargers", []):
         entities.append(TapChargingLimit(coordinator, charger))
@@ -39,10 +33,9 @@ class TapChargingLimit(NumberEntity):
         }
 
     async def async_set_native_value(self, value):
-        # We hebben de API nodig om te versturen. 
-        # In de __init__.py hebben we de API niet in de coordinator gestopt. 
-        # Laten we dat voor de zekerheid even fixen in __init__.py.
-        api = self.coordinator.hass.data[DOMAIN]["api_instance"]
-        await api.set_charging_limit(self.charger_id, value)
-        self._attr_native_value = value
-        self.async_write_ha_state()
+        """Update de laadstroom."""
+        api = self.coordinator.hass.data[DOMAIN].get("api_instance")
+        if api:
+            await api.set_charging_limit(self.charger_id, value)
+            self._attr_native_value = value
+            self.async_write_ha_state()
