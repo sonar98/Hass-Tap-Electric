@@ -3,7 +3,7 @@ import logging
 
 _LOGGER = logging.getLogger(__name__)
 
-class TapElectricApi:
+class TapElectricAPI:
     def __init__(self, token):
         self.token = token
         self.base_url = "https://api.tapelectric.app/v1" # Pas aan naar de juiste Tap URL indien nodig
