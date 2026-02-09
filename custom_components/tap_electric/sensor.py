@@ -8,37 +8,38 @@ async def async_setup_entry(hass, entry, async_add_entities):
     coordinator = hass.data[DOMAIN][entry.entry_id]
     entities = []
     
-    # We lopen door alle data in de coordinator
-    # Chargers
+    # Verwerk Chargers
     for charger in coordinator.data.get("chargers", []):
-        c_id = charger.get("id", "unknown_charger")
+        c_id = charger.get("id", "unknown")
         c_name = charger.get("name") or f"Tap Lader {c_id[-4:]}"
         
         for key, value in charger.items():
             if isinstance(value, (int, float, str)) and key != "id":
                 entities.append(TapDynamicSensor(coordinator, c_id, c_name, key, "charger"))
 
-    # Sessions (Live data)
+    # Verwerk Sessies (Nu met Unieke IDs per sessie!)
     for session in coordinator.data.get("sessions", []):
-        s_id = session.get("id", "unknown_session")
-        # Probeer te koppelen aan charger_id voor groepering
-        c_id = session.get("chargerId") or "session_data"
+        # We gebruiken het echte Sessie ID om duplicaten te voorkomen
+        s_id = session.get("id", "unknown_sess")
+        c_id = session.get("chargerId") or "unlinked"
         
         for key, value in session.items():
             if isinstance(value, (int, float, str)) and key != "id":
-                entities.append(TapDynamicSensor(coordinator, c_id, "Tap Sessie", f"sess_{key}", "session"))
+                # We voegen het s_id toe aan de unieke ID van de sensor
+                entities.append(TapDynamicSensor(coordinator, c_id, f"Sessie {s_id[-4:]}", key, f"session_{s_id}"))
 
     async_add_entities(entities)
 
 class TapDynamicSensor(SensorEntity):
-    def __init__(self, coordinator, charger_id, charger_name, key, source):
+    def __init__(self, coordinator, charger_id, charger_name, key, source_id):
         self.coordinator = coordinator
         self.charger_id = charger_id
         self.charger_name = charger_name
         self.key = key
-        self.source = source
+        self.source_id = source_id
         self._attr_name = f"{charger_name} {key.replace('_', ' ').capitalize()}"
-        self._attr_unique_id = f"tap_{charger_id}_{source}_{key}"
+        # De unique_id bevat nu het specifieke sessie-ID (source_id)
+        self._attr_unique_id = f"tap_{source_id}_{key}"
         self._attr_has_entity_name = False
 
     @property
@@ -46,23 +47,24 @@ class TapDynamicSensor(SensorEntity):
         if not self.coordinator.data:
             return None
         
-        if self.source == "charger":
+        # Zoek in chargers
+        if "session" not in self.source_id:
             for c in self.coordinator.data.get("chargers", []):
                 if c.get("id") == self.charger_id:
                     return c.get(self.key)
+        # Zoek in specifieke sessie
         else:
+            actual_sess_id = self.source_id.replace("session_", "")
             for s in self.coordinator.data.get("sessions", []):
-                if (s.get("chargerId") == self.charger_id or 
-                    s.get("id") == self.key.replace("sess_","")):
-                    return s.get(self.key.replace("sess_", ""))
+                if s.get("id") == actual_sess_id:
+                    return s.get(self.key)
         return None
 
     @property
     def device_info(self):
-        # Dit was de boosdoener. Nu veilig opgezet:
         return {
             "identifiers": {(DOMAIN, self.charger_id)},
-            "name": self.charger_name,
+            "name": "Tap Electric Lader",
             "manufacturer": "Tap Electric",
         }
 
