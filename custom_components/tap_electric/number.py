@@ -1,49 +1,33 @@
-from homeassistant.components.number import NumberEntity, NumberDeviceClass
-from homeassistant.const import UnitOfElectricCurrent
+from homeassistant.components.number import NumberEntity
 from .const import DOMAIN
 
 async def async_setup_entry(hass, entry, async_add_entities):
     coordinator = hass.data[DOMAIN][entry.entry_id]
     entities = []
     for charger in coordinator.data.get("chargers", []):
-        entities.append(TapChargingLimit(coordinator, charger))
+        entities.append(TapCurrentLimit(coordinator, charger["id"]))
     async_add_entities(entities)
 
-class TapChargingLimit(NumberEntity):
-    _attr_device_class = NumberDeviceClass.CURRENT
-    _attr_native_unit_of_measurement = UnitOfElectricCurrent.AMPERE
-    _attr_native_min_value = 6
-    _attr_native_max_value = 32
-    _attr_native_step = 1
-
-    def __init__(self, coordinator, charger):
+class TapCurrentLimit(NumberEntity):
+    def __init__(self, coordinator, charger_id):
         self.coordinator = coordinator
-        self.charger_id = charger["id"]
-        # Dynamische naamgeving zonder hardcoded strings
-        self.charger_name = charger.get("name") or f"Tap Charger {self.charger_id[-4:]}"
-        self._attr_name = f"{self.charger_name} Limiet"
-        self._attr_unique_id = f"tap_limit_{self.charger_id}"
-        self._attr_has_entity_name = False
-        
-        # We halen de huidige limiet uit de lader-data als die beschikbaar is, 
-        # anders gebruiken we 16 als veilige fallback.
-        self._attr_native_value = charger.get("maxCurrent") or charger.get("currentLimit") or 16
+        self.charger_id = charger_id
+        self._attr_name = "Tap Laadstroom Limiet"
+        self._attr_unique_id = f"tap_current_{charger_id}"
+        self._attr_native_min_value = 6
+        self._attr_native_max_value = 16
+        self._attr_native_step = 1
+        self._attr_native_unit_of_measurement = "A"
 
     @property
-    def device_info(self):
-        return {
-            "identifiers": {(DOMAIN, self.charger_id)},
-            "name": self.charger_name,
-            "manufacturer": "Tap Electric",
-        }
+    def native_value(self):
+        # Haal de huidige limiet uit de API data indien beschikbaar
+        for charger in self.coordinator.data.get("chargers", []):
+            if charger["id"] == self.charger_id:
+                return charger.get("maxCurrent", 16)
+        return 16
 
-    async def async_set_native_value(self, value):
-        """Update de laadstroom naar de API."""
-        api = self.coordinator.hass.data[DOMAIN].get("api_instance")
-        if api:
-            success = await api.set_charging_limit(self.charger_id, value)
-            if success:
-                self._attr_native_value = value
-                # Forceer een refresh van de coordinator zodat alle sensoren direct up-to-date zijn
-                await self.coordinator.async_request_refresh()
-                self.async_write_ha_state()
+    async def set_native_value(self, value):
+        """Stuur nieuwe Ampère limiet naar Tap."""
+        await self.coordinator.api.set_current_limit(self.charger_id, int(value))
+        await self.coordinator.async_request_refresh()
