@@ -19,10 +19,15 @@ class TapChargingLimit(NumberEntity):
     def __init__(self, coordinator, charger):
         self.coordinator = coordinator
         self.charger_id = charger["id"]
-        self.charger_name = charger.get("name", f"Lader {self.charger_id[-4:]}")
+        # Dynamische naamgeving zonder hardcoded strings
+        self.charger_name = charger.get("name") or f"Tap Charger {self.charger_id[-4:]}"
         self._attr_name = f"{self.charger_name} Limiet"
         self._attr_unique_id = f"tap_limit_{self.charger_id}"
-        self._attr_native_value = 16
+        self._attr_has_entity_name = False
+        
+        # We halen de huidige limiet uit de lader-data als die beschikbaar is, 
+        # anders gebruiken we 16 als veilige fallback.
+        self._attr_native_value = charger.get("maxCurrent") or charger.get("currentLimit") or 16
 
     @property
     def device_info(self):
@@ -33,9 +38,12 @@ class TapChargingLimit(NumberEntity):
         }
 
     async def async_set_native_value(self, value):
-        """Update de laadstroom."""
+        """Update de laadstroom naar de API."""
         api = self.coordinator.hass.data[DOMAIN].get("api_instance")
         if api:
-            await api.set_charging_limit(self.charger_id, value)
-            self._attr_native_value = value
-            self.async_write_ha_state()
+            success = await api.set_charging_limit(self.charger_id, value)
+            if success:
+                self._attr_native_value = value
+                # Forceer een refresh van de coordinator zodat alle sensoren direct up-to-date zijn
+                await self.coordinator.async_request_refresh()
+                self.async_write_ha_state()
