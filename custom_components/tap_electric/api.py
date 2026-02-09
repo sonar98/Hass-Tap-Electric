@@ -10,49 +10,41 @@ class TapElectricAPI:
         self.headers = {"X-Api-Key": self.api_key}
 
     async def get_chargers(self):
-        """Haal alle laders op."""
         async with aiohttp.ClientSession() as session:
             async with session.get(f"{BASE_URL}/chargers", headers=self.headers) as resp:
-                return await resp.json() if resp.status == 200 else []
+                data = await resp.json() if resp.status == 200 else []
+                _LOGGER.debug("Tap Chargers Data: %s", data)
+                return data
 
     async def get_active_sessions(self):
-        """Haal actieve laadsessies op voor sensoren."""
         async with aiohttp.ClientSession() as session:
             async with session.get(f"{BASE_URL}/charger-sessions", headers=self.headers) as resp:
-                return await resp.json() if resp.status == 200 else []
+                data = await resp.json() if resp.status == 200 else []
+                _LOGGER.debug("Tap Sessions Data: %s", data)
+                return data
 
     async def set_charging_limit(self, charger_id, amps):
-        """Stel de maximale laadstroom in."""
         url = f"{BASE_URL}/chargers/{charger_id}/remote-configuration"
-        payload = {
-            "command": "SetChargingProfile",
-            "args": {
-                "limit": float(amps),
-                "unit": "A",
-                "stackLevel": 1,
-                "purpose": "TxProfile"
-            }
-        }
-        async with aiohttp.ClientSession() as session:
-            try:
-                async with session.post(url, json=payload, headers=self.headers) as resp:
-                    return resp.status == 200
-            except Exception as e:
-                _LOGGER.error("Fout bij instellen limiet: %s", e)
-                return False
-
-    async def remote_start(self, charger_id):
-        """Start de lader op afstand."""
-        url = f"{BASE_URL}/chargers/{charger_id}/remote-control"
-        payload = {"command": "RemoteStartTransaction"}
+        payload = {"command": "SetChargingProfile", "args": {"limit": float(amps), "unit": "A", "stackLevel": 1, "purpose": "TxProfile"}}
         async with aiohttp.ClientSession() as session:
             async with session.post(url, json=payload, headers=self.headers) as resp:
                 return resp.status == 200
 
-    async def remote_stop(self, charger_id):
-        """Stop de lader op afstand."""
+    async def remote_start(self, charger_id):
         url = f"{BASE_URL}/chargers/{charger_id}/remote-control"
-        payload = {"command": "RemoteStopTransaction"}
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, json={"command": "RemoteStartTransaction"}, headers=self.headers) as resp:
+                return resp.status == 200
+
+    async def remote_stop(self, charger_id):
+        url = f"{BASE_URL}/chargers/{charger_id}/remote-control"
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, json={"command": "RemoteStopTransaction"}, headers=self.headers) as resp:
+                return resp.status == 200
+
+    async def set_phases(self, charger_id, phase_count):
+        url = f"{BASE_URL}/chargers/{charger_id}/remote-configuration"
+        payload = {"command": "ChangeConfiguration", "args": {"key": "NumberOfPhases", "value": str(phase_count)}}
         async with aiohttp.ClientSession() as session:
             async with session.post(url, json=payload, headers=self.headers) as resp:
                 return resp.status == 200
