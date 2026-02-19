@@ -6,7 +6,7 @@ _LOGGER = logging.getLogger(__name__)
 class TapElectricAPI:
     def __init__(self, token):
         self.token = token
-        self.base_url = "https://api.tapelectric.app/v1"
+        self.base_url = "https://api.tapelectric.app/api/v1"
         # De headers moeten exact zijn voor de Tap API om 401 te voorkomen
         self.headers = {
             "X-Api-Key": self.token,
