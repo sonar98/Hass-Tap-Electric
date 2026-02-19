@@ -2,11 +2,11 @@
   "domain": "tap_electric",
   "name": "Tap Electric",
   "brand": true,
-  "documentation": "https://github.com/Jvgvisser/Hass-Tap-Electric",
-  "issue_tracker": "https://github.com/Jvgvisser/Hass-Tap-Electric/issues",
+  "documentation": "https://github.com/sonar98/Hass-Tap-Electric",
+  "issue_tracker": "https://github.com/sonar98/Hass-Tap-Electric/issues",
   "dependencies": [],
-  "codeowners": ["@Jvgvisser"],
+  "codeowners": ["@sonar98"],
   "config_flow": true,
   "iot_class": "cloud_polling",
-  "version": "1.1.4"
+  "version": "1.1.5"
 }
