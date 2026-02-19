@@ -9,7 +9,7 @@ class TapElectricAPI:
         self.base_url = "https://api.tapelectric.app/v1"
         # De headers moeten exact zijn voor de Tap API om 401 te voorkomen
         self.headers = {
-            "Authorization": f"Bearer {self.token}",
+            "X-Api-Key": self.token,
             "Content-Type": "application/json",
             "Accept": "application/json"
         }
